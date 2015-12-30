@@ -1,0 +1,8 @@
+#!/bin/sh
+
+redshift &
+synclient VertScrollDelta=-235 HorizScrollDelta=-235
+setxkbmap -option compose:caps
+
+/opt/ellington/Ellington &
+exec xterm
