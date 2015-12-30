@@ -21,7 +21,7 @@
  * 
  * 	→ Panel
  * 		1. Draw panel with basic information, such as time.
- * 		2. Show pop-up menus.
+ * 		2. Show pop-up menus (applets).
  * 		3. Draw status tray.
  * 			→ UIToolkit (for drawing)
  * 			→ WindowManager (for window lists)
@@ -29,6 +29,11 @@
  * To do
  * -----
  * - Panel applets: applications menu, windows list/workspace switcher, clock, status tray, log out.
+ * 	Comms between panel and window manager:
+ * 		→ No: Pointers. It'd be a shame to start now.
+ * 		→ No: Messages. Via X11? A queue? Cumbersome.
+ * 		→ No: Make panel like desktop: a child of window manager, and always with a copy of parent.
+ * 		→ Yes: One-way. Window manager doesn't need panel enough. Just pass window manager to panel.
  * - Full-screen.
  * - Split up parser. Handle tags.
  * - Split up event handlers.
@@ -36,9 +41,13 @@
  * - Problem cases: Firefox tooltips, xfce4-taskmanager...
  */
 
+#include <poll.h>
+#include <stdbool.h>
+
+bool globalQuit = false;
+
 #include "WindowManager/WindowManager.h"
 #include "Applets/Panel.h"
-#include "poll.h"
 
 int main(int numArgs, const char** argList)
 {
@@ -50,12 +59,12 @@ int main(int numArgs, const char** argList)
 	uiWindow panel = panelGet(session.root);
 	
 	// Set up a funnel to watch for the next event
-	short watchResult;
+	short discardResult;
 	struct pollfd watchList[3] =
 	{
-		{XConnectionNumber(session.root.display), POLLIN, watchResult},
-		{XConnectionNumber(session.desktop.ui.window.display), POLLIN, watchResult},
-		{XConnectionNumber(panel.window.display), POLLIN, watchResult}
+		{XConnectionNumber(session.root.display), POLLIN, discardResult},
+		{XConnectionNumber(session.desktop.ui.window.display), POLLIN, discardResult},
+		{XConnectionNumber(panel.window.display), POLLIN, discardResult}
 	};
 	
 	// Loop
@@ -63,9 +72,13 @@ int main(int numArgs, const char** argList)
 	{
 		session = wmEvents(session);
 		panel = panelEvents(panel, session);
+		
+		if(globalQuit) { break; }
 
 		poll(watchList, 3, -1);
 	}
+	
+	// Exit more gracefully
 	
 	return 0;
 }

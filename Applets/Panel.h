@@ -4,7 +4,8 @@
 #include "Theme.h"
 #include "UIToolkit/UIToolkit.h"
 
-char* panelMarkup = "*Applications* Windows	> *3.14pm* <	> *Exit · • • • · · • • • ·* >";
+char* panelLeftMenu = "*Applications* Windows	> *";
+char* panelRightMenu = "* <	> *Exit* >";
 
 uiWindow panelGet(xWindow root)
 {
@@ -18,10 +19,24 @@ uiWindow panelGet(xWindow root)
 	return panel;
 }
 
+char* panelMarkup(char* storage)
+{
+	char panelDate[20];
+
+	strcat(storage, panelLeftMenu);
+	strcat(storage, dateString(panelDate, 20));
+	strcat(storage, panelRightMenu);
+
+	return storage;
+}
+
 void panelRedraw(uiWindow panel)
 {
+	char markup[100] = {0};
+	
+	// Draw
 	uiBeginFrame(panel);
-	uiDraw(panel, panelMarkup);
+	uiDraw(panel, panelMarkup(markup));
 	uiEndFrame(panel);
 }
 
@@ -36,18 +51,21 @@ uiWindow panelEvents(uiWindow panel, wmSession session)
 	XEvent event;
 	XNextEvent(panel.window.display, &event);
 	
+	char markup[100] = {0};
 	char dataStorage[max(2*sizeof(float), 3*sizeof(int))];
 	int par, tab, word;
 	
 	switch(event.type)
 	{
 		case ButtonPress:
-			if(uiIndexAt(panel, panelMarkup, event.xbutton.x, event.xbutton.y, dataStorage))
+			if(uiIndexAt(panel, panelMarkup(markup), event.xbutton.x, event.xbutton.y, dataStorage))
 			{
 				par = ((int*)dataStorage)[0];
 				tab = ((int*)dataStorage)[1];
 				word = ((int*)dataStorage)[2];
+				
 				if(par == 1 && tab == 1 && word == 1) { system("xfce4-appfinder &"); }
+				if(par == 1 && tab == 3 && word == 1) { globalQuit = true; }
 			}
 			break;
 	}

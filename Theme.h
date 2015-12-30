@@ -24,4 +24,7 @@
 #define themeInnerSpace	10
 #define themeBarHeight	22
 
+// Miscellaneous
+#define themeDateFormat "%A"
+
 #endif
