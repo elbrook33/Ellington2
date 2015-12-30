@@ -9,7 +9,7 @@
 
 // Initialising
 
-uiWindow uiGet(xWindow root, uiBox box)
+uiWindow uiGetOn(xWindow root, uiBox box)
 {
 	uiWindow ui;
 	ui.window = xCreate(root, box.x, box.y, box.width, box.height);
@@ -57,6 +57,23 @@ uiWindow uiGet(xWindow root, uiBox box)
 	return ui;
 }
 
+uiWindow uiGet(const char* displayName, uiBox box)
+{
+	xWindow root = xGetRoot(displayName);
+	uiWindow ui = uiGetOn(root, box);
+	
+	XSelectInput(ui.window.display, ui.window.id,
+		PointerMotionMask|ButtonPressMask|ButtonReleaseMask);
+	
+	XMapWindow(ui.window.display, ui.window.id);
+	return ui;
+}
+
+uiWindow uiGetDefault(int x, int y, int width, int height)
+{
+	return uiGet(NULL, getBox(x, y, width, height));
+}
+
 uiWindow uiSetColours(uiWindow ui,
 	float fgH, float fgS, float fgL,
 	float bgH, float bgS, float bgL,
@@ -80,12 +97,12 @@ void uiBeginFrame(uiWindow ui)
 	glXMakeCurrent(ui.window.display, ui.window.id, ui.canvas.glx);
 	nvgBeginFrame(ui.canvas.nano, ui.window.attributes.width, ui.window.attributes.height, 1/1);
 }
-
 void uiEndFrame(uiWindow ui)
 {
 	nvgEndFrame(ui.canvas.nano);
 	glFlush();
 }
+
 
 uiState uiDrawAction(uiWindow ui,
 	uiItemType type,
@@ -126,6 +143,13 @@ void uiDrawInBox(uiWindow ui, uiBox box, const char* markup)
 	uiDraw(ui, markup);
 	
 	// Bounds will revert automatically since window is not returned
+}
+
+void uiRedraw(uiWindow ui, const char* markup)
+{
+	uiBeginFrame(ui);
+	uiDraw(ui, markup);
+	uiEndFrame(ui);
 }
 
 
@@ -173,6 +197,31 @@ int* uiIndexInBox(uiWindow ui, uiBox box, const char* markup, float x, float y, 
 	ui.canvas.bottom = box.y + box.height;
 	
 	return uiIndexAt(ui, markup, x, y, dataStorage);
+}
+
+
+// Events
+
+uiEvent uiGetEvent(uiWindow panel, const char* markup)
+{
+	uiEvent event;
+	XNextEvent(panel.window.display, &event.xEvent);
+	event.type = event.xEvent.type;
+	
+	char dataStorage[max(2*sizeof(float), 3*sizeof(int))];
+	int* target;
+	
+	switch(event.type)
+	{
+		case ButtonPress:
+			target = uiIndexAt(panel, markup, event.xEvent.xbutton.x, event.xEvent.xbutton.y, dataStorage);
+			event.target.par = target[0];
+			event.target.tab = target[1];
+			event.target.word = target[2];
+			break;
+	}
+	
+	return event;
 }
 
 #endif

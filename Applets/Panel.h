@@ -9,7 +9,7 @@ char* panelRightMenu = "* <	> *Exit* >";
 
 uiWindow panelGet(xWindow root)
 {
-	uiWindow panel = uiGet(root, boxXYWH(0, 0, root.attributes.width, themeBarHeight));
+	uiWindow panel = uiGetOn(root, boxXYWH(0, 0, root.attributes.width, themeBarHeight));
 	
 	panel = uiSetColours(panel, themePanelFg, themePanelBg, NULL);
 	

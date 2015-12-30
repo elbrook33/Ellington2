@@ -9,7 +9,7 @@
 desktopSession desktopGet(wmSession session)
 {
 	desktopSession desktop;
-	desktop.ui = uiGet(session.root, boxWindow(session.root));
+	desktop.ui = uiGetOn(session.root, boxWindow(session.root));
 	desktop.ui = uiSetColours(desktop.ui, themeTitlebarFg, themeTitlebarInactive, themeWallpaper);
 	
 	XSelectInput(desktop.ui.window.display, desktop.ui.window.id,

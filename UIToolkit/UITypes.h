@@ -61,6 +61,13 @@ typedef enum { uiText, uiImage } uiItemType;
 typedef struct uiBox { float x, y, width, height; } uiBox;
 typedef struct uiIndices { int par, tab, word; } uiIndices;
 
+typedef struct uiEvent
+{
+	int type;
+	XEvent xEvent;
+	uiIndices target;
+} uiEvent;
+
 typedef uiState (*uiWordAction)(uiWindow, uiItemType, const char*, float, float, uiBox, uiIndices, void*);
 
 
@@ -82,6 +89,10 @@ uiBox boxXYWH(float x, float y, float width, float height)
 	box.height = height;
 	return box;
 }
+uiBox getBox(float x, float y, float width, float height)
+{
+	return boxXYWH(x, y, width, height);
+}
 uiBox boxXYXY(float* bounds)
 {
 	uiBox box;
@@ -99,6 +110,10 @@ uiBox boxWindow(xWindow window)
 	box.width = window.attributes.width;
 	box.height = window.attributes.height;
 	return box;
+}
+bool uiEventTarget(uiEvent event, int par, int tab, int word)
+{
+	return event.target.par == par && event.target.tab == tab && event.target.word == word;
 }
 
 #endif

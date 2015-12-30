@@ -78,7 +78,5 @@ int main(int numArgs, const char** argList)
 		poll(watchList, 3, -1);
 	}
 	
-	// Exit more gracefully
-	
 	return 0;
 }
