@@ -346,6 +346,15 @@ wmSession wmEvents(wmSession session)
 	}
 	wmRemovals.length = 0;
 	
+	// Set up a funnel to watch for the next event
+	short discardResult;
+	struct pollfd watchList[2] =
+	{
+		{XConnectionNumber(session.root.display), POLLIN, discardResult},
+		{XConnectionNumber(session.desktop.ui.window.display), POLLIN, discardResult},
+	};
+	poll(watchList, 2, -1);
+	
 	return session;
 }
 

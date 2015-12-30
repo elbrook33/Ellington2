@@ -23,7 +23,7 @@ xWindow xUpdateAttributes(xWindow window)
 xWindow xCreate(xWindow root, int x, int y, int width, int height)
 {
 	xWindow newWindow;
-	newWindow.display = XOpenDisplay(XDisplayString(root.display));
+	newWindow.display = root.display;
 	
 	XSetWindowAttributes attributes;
 	attributes.override_redirect = true;

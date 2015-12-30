@@ -9,7 +9,7 @@
 desktopSession desktopGet(wmSession session)
 {
 	desktopSession desktop;
-	desktop.ui = uiGetOn(session.root, boxWindow(session.root));
+	desktop.ui = uiGet(XDisplayString(session.root.display), boxWindow(session.root));
 	desktop.ui = uiSetColours(desktop.ui, themeTitlebarFg, themeTitlebarInactive, themeWallpaper);
 	
 	XSelectInput(desktop.ui.window.display, desktop.ui.window.id,
@@ -17,6 +17,16 @@ desktopSession desktopGet(wmSession session)
 	XMapWindow(desktop.ui.window.display, desktop.ui.window.id);
 	
 	return desktop;
+}
+
+uiBox desktopTitlebar(xWindow window)
+{
+	return uiGetBox(
+		window.attributes.x,
+		window.attributes.y - themeBarHeight,
+		window.attributes.width,
+		themeBarHeight
+	);
 }
 
 
@@ -38,12 +48,7 @@ void desktopRedraw(wmSession session)
 	{
 		xWindow window = wmWorkspace(session)[i];
 		
-		uiBox box = boxXYWH(
-			window.attributes.x,
-			window.attributes.y - themeBarHeight,
-			window.attributes.width,
-			themeBarHeight
-		);
+		uiBox box = desktopTitlebar(window);
 		
 		if(i == session.activeWindow)
 		{
@@ -116,14 +121,7 @@ int desktopTitlebarAt(wmSession session, int x, int y)
 {
 	for(int window = 0; window < wmLength(session); window++)
 	{
-		if(
-			inBox(boxXYWH(
-				wmWorkspace(session)[window].attributes.x,
-				wmWorkspace(session)[window].attributes.y - themeBarHeight,
-				wmWorkspace(session)[window].attributes.width,
-				themeBarHeight),
-			x, y)
-		)
+		if(uiInBox(desktopTitlebar(wmWorkspace(session)[window]), x, y))
 			{ return window; }
 	}
 	return -1;
@@ -171,12 +169,7 @@ wmSession desktopEvents(wmSession session)
 			// Check if clicked on close button	
 			if(targetIndex > -1 &&
 				uiIndexInBox(session.desktop.ui,
-					boxXYWH(
-						wmWorkspace(session)[targetIndex].attributes.x,
-						wmWorkspace(session)[targetIndex].attributes.y - themeBarHeight,
-						wmWorkspace(session)[targetIndex].attributes.width,
-						themeBarHeight
-					),
+					desktopTitlebar(wmWorkspace(session)[targetIndex]),
 					"> *×* >",
 					event.xbutton.x_root, event.xbutton.y_root,
 					indexData

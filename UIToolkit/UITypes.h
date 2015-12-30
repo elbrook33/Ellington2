@@ -73,14 +73,14 @@ typedef uiState (*uiWordAction)(uiWindow, uiItemType, const char*, float, float,
 
 // Helper functions
 
-bool inBox(uiBox box, float x, float y)
+bool uiInBox(uiBox box, float x, float y)
 {
 	return x >= box.x
 		&& x <= box.x + box.width
 		&& y >= box.y
 		&& y <= box.y + box.height;
 }
-uiBox boxXYWH(float x, float y, float width, float height)
+uiBox uiGetBox(float x, float y, float width, float height)
 {
 	uiBox box;
 	box.x = x;
@@ -88,10 +88,6 @@ uiBox boxXYWH(float x, float y, float width, float height)
 	box.width = width;
 	box.height = height;
 	return box;
-}
-uiBox getBox(float x, float y, float width, float height)
-{
-	return boxXYWH(x, y, width, height);
 }
 uiBox boxXYXY(float* bounds)
 {

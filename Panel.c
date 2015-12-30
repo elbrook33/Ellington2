@@ -1,4 +1,3 @@
-#include "Theme.h"
 #include "UIToolkit/UI.h"
 
 // Globals

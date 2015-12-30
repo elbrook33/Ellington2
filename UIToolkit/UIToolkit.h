@@ -71,7 +71,7 @@ uiWindow uiGet(const char* displayName, uiBox box)
 
 uiWindow uiGetDefault(int x, int y, int width, int height)
 {
-	return uiGet(NULL, getBox(x, y, width, height));
+	return uiGet(NULL, uiGetBox(x, y, width, height));
 }
 
 uiWindow uiSetColours(uiWindow ui,
@@ -165,7 +165,7 @@ uiState uiIndexAction(uiWindow ui,
 {	
 	float x = ((float*)passedData)[0];
 	float y = ((float*)passedData)[1];
-	if(inBox(box, x, y))
+	if(uiInBox(box, x, y))
 	{
 		((int*)passedData)[0] = position.par;
 		((int*)passedData)[1] = position.tab;
@@ -215,9 +215,9 @@ uiEvent uiGetEvent(uiWindow panel, const char* markup)
 	{
 		case ButtonPress:
 			target = uiIndexAt(panel, markup, event.xEvent.xbutton.x, event.xEvent.xbutton.y, dataStorage);
-			event.target.par = target[0];
-			event.target.tab = target[1];
-			event.target.word = target[2];
+			event.target.par = target? target[0] : 0;
+			event.target.tab = target? target[1] : 0;
+			event.target.word = target? target[2] : 0;
 			break;
 	}
 	
