@@ -1,6 +1,6 @@
 /*
  * To do:
- * Split up in pieces.
+ * Separate specific rules from parser structure.
  */
 
 #ifndef UI_PARSER_H
@@ -10,151 +10,223 @@
 #include "UIToolkit/UITypes.h"
 #include "Misc/Helpers.h"
 
-uiState uiParse(uiWindow ui, const char* markup, uiWordAction action, void* data)
+uiState uiParsePars(uiWindow, uiWordAction, uiParseContext* data,
+	float* x, float* y, const char* pars);
+uiState uiParseTabs(uiWindow, uiWordAction, uiParseContext* data,
+	float* x, float* y, int parIndex, char* tabs);
+uiState uiParseWords(uiWindow, uiWordAction, uiParseContext* data,
+	float* x, float* y, uiAlign align, int parIndex, int tabIndex, char* words);
+uiState uiParseTag(uiWindow, uiWordAction, uiParseContext* data,
+	float* x, float* y, uiAlign align, int parIndex, int tabIndex, char* word, char** wordProgress);
+
+#define forEachToken(T, Delimiter)	\
+	char *T, *T##Progress;	\
+	int T##Index = 1;	\
+	for(T = strtok_r(T##s, Delimiter, &T##Progress);	\
+		T != NULL;	\
+		T = strtok_r(NULL, Delimiter, &T##Progress), T##Index++)
+
+
+// Set up
+
+uiState uiParse(uiWindow ui, uiWordAction action, uiParseContext* data)
 {
-	if(!markup || !*markup) { return uiNoStop; }
+	if(!ui.canvas.markup || !*ui.canvas.markup) { return uiNoStop; }
 	
 	// Set up drawing context
 	float
-		x = ui.canvas.left + themeMargin,
-		y = ui.canvas.top + themeMargin;
+		x = ui.canvas.left + ui.canvas.margin,
+		y = ui.canvas.top + ui.canvas.margin + ui.canvas.scrollY;
 	
 	nvgFontSize(ui.canvas.nano, ui.canvas.fontSize);
 	nvgFontFace(ui.canvas.nano, "normal");
 	nvgFillColor(ui.canvas.nano, ui.canvas.fgColour);
 	
-	float spaceWidth =
+	ui.canvas.spaceWidth =
 		nvgTextBounds(ui.canvas.nano, 0, 0, "M M", NULL, NULL)
 		- nvgTextBounds(ui.canvas.nano, 0, 0, "MM", NULL, NULL);
 	
-	// Traverse through pars, then tabs, then words
+	return uiParsePars(ui, action, data, &x, &y, ui.canvas.markup);
+}
+
+
+// Pars
+
+uiState uiParsePars(uiWindow ui, uiWordAction action, uiParseContext* data,
+	float* x, float* y, const char* markup)
+{
 	char *pars = strdup(markup);
-	char *par, *parProgress;
 	
-	int parIndex = 0;
-	
-	for(	par = strtok_r(pars, "\n", &parProgress);
-		par != NULL;
-		par = strtok_r(NULL, "\n", &parProgress))
+	forEachToken(par, "\n")
 	{
-		parIndex += 1;
+		if(
+			uiParseTabs(ui, action, data, x, y, parIndex, par) == uiStop
+		)
+			{ free(pars); return uiStop; }
 		
-		char *tabs = par;
-		char *tab, *tabProgress;
+		*y += ui.canvas.lineHeight;
+	}
+
+	free(pars);
+	return uiNoStop;
+}
+
+
+// Tab
+
+uiState uiParseTabs(uiWindow ui, uiWordAction action, uiParseContext* data,
+	float* x, float* y, int parIndex, char* tabs)
+{
+	int tabCount = strcount(tabs, '\t') + 1;
+	float tabWidth = (ui.canvas.right - ui.canvas.left - 2*themeMargin) / (float)tabCount;
+	
+	forEachToken(tab, "\t")
+	{
+		*x = (float)(tabIndex - 1)*tabWidth + ui.canvas.left + themeMargin;
+		int lastIndex = strlen(tab) - 1;
+			
+		// Left
+		uiAlign align = uiLeft;
+		nvgTextAlign(ui.canvas.nano, NVG_ALIGN_LEFT|NVG_ALIGN_TOP);
 		
-		// Tabs are effectively tables
-		int tabIndex = 0;
-		int tabCount = strcount(tabs, '\t') + 1;
-		float tabWidth = (ui.canvas.right - ui.canvas.left - 2*themeMargin) / (float)tabCount;
-		
-		int tabAlignment;
-		
-		for(	tab = strtok_r(tabs, "\t", &tabProgress);
-			tab != NULL;
-			tab = strtok_r(NULL, "\t", &tabProgress))
+		// Centre
+		if(tab[0] == '>' && tab[lastIndex] == '<')
 		{
-			x = (float)tabIndex * tabWidth + ui.canvas.left + themeMargin;
-			tabIndex += 1;
-			
-			// Handle left, centre and right alignment
-			switch(*tab)
+			align = uiCentre;
+			*x += tabWidth / 2.0;
+			nvgTextAlign(ui.canvas.nano, NVG_ALIGN_CENTER|NVG_ALIGN_TOP);
+			tab[lastIndex] = '\0';
+			tab++;
+		}
+		
+		// Right
+		if(tab[0] == '>' && tab[lastIndex] == '>')
+		{
+			align = uiRight;
+			*x += tabWidth;
+			nvgTextAlign(ui.canvas.nano, NVG_ALIGN_RIGHT|NVG_ALIGN_TOP);
+			tab[lastIndex] = '\0';
+			tab++;
+		}
+		
+		if(
+			uiParseWords(ui, action, data, x, y, align, parIndex, tabIndex, tab) == uiStop
+		)
+			{ return uiStop; }
+	}
+	return uiNoStop;
+}
+
+
+// Word
+
+uiState uiParseWords(uiWindow ui, uiWordAction action, uiParseContext* data,
+	float* x, float* y, uiAlign align, int parIndex, int tabIndex, char* words)
+{
+	uiItemType itemType = uiText;
+	
+	forEachToken(word, " ")
+	{
+		// Handle bold and italics
+		int lastIndex = strlen(word) - 1;
+		
+		while(*word && strchr("\\_*<|", *word))
+		{
+			switch(*word)
 			{
-				case '>':
-					tab += 1;
-					int lastIndex = strlen(tab) - 1;					
-					switch(tab[lastIndex])
-					{
-						case '>':
-							tab[lastIndex] = '\0';
-							tabAlignment = 1;
-							nvgTextAlign(ui.canvas.nano, NVG_ALIGN_RIGHT|NVG_ALIGN_TOP);
-							x += tabWidth;
-							break;
-						case '<':
-							tab[lastIndex] = '\0';
-							tabAlignment = 0;
-							nvgTextAlign(ui.canvas.nano, NVG_ALIGN_CENTER|NVG_ALIGN_TOP);
-							x += tabWidth / 2.0;
-							break;
-					}
+				case '\\':
 					break;
-				default:
-					tabAlignment = -1;
-					nvgTextAlign(ui.canvas.nano, NVG_ALIGN_LEFT|NVG_ALIGN_TOP);
+				case '_':
+					nvgFontFace(ui.canvas.nano, "italic");
+					break;
+				case '*':
+					nvgFontFace(ui.canvas.nano, "bold");
+					break;
+				case '<':
+					uiParseTag(ui, action, data, x, y, align, parIndex, tabIndex, word, &wordProgress);
+					continue;
+				case '|':
+					itemType = uiHighlighted;
+					break;
 			}
-			
-			// Words may need to eventually be traversed twice for centre and right alignments
-			char *words = tab;
-			char *word, *wordProgress;
-			
-			int wordIndex = 0;
-
-			for(	word = strtok_r(words, " ", &wordProgress);
-				word != NULL;
-				word = strtok_r(NULL, " ", &wordProgress))
+			word += 1;
+			lastIndex -= 1;
+		}
+		
+		// Handle trailing stylings
+		char lastLetter = '\0';
+		
+		while(lastIndex > 0 && strchr("\\_*<|", word[lastIndex]))
+		{
+			switch(word[lastIndex])
 			{
-				wordIndex += 1;
-				
-				// Handle bold and italics
-				switch(*word)
-				{
-					case '\\':
-						word += 1;
-						break;
-					case '_':
-						nvgFontFace(ui.canvas.nano, "italic");
-						word += 1;
-						break;
-					case '*':
-						nvgFontFace(ui.canvas.nano, "bold");
-						word += 1;
-						break;
-				}
-				
-				// Handle trailing stylings
-				int lastIndex = strlen(word) - 1;
-				char lastLetter = '\0';
-				switch(word[lastIndex])
-				{
-					case '\\':
-						word[lastIndex] = '\0';
-						break;
-					case '_':
-					case '*':
-						word[lastIndex] = '\0';
-						lastLetter = '_';
-						break;
-				}
-				
-				// Send word to "action"
-				float bounds[4];
-				float textWidth = nvgTextBounds(ui.canvas.nano, x, y, word, NULL, bounds)
-					+ spaceWidth;
-				
-				uiIndices indices = { parIndex, tabIndex, wordIndex };
-
-				if(action(ui, uiText, word, x, y, boxXYXY(bounds), indices, data) == uiStop)
-					{ free(pars); return uiStop; }
-				
-				// Advance text entry position
-				switch(tabAlignment)
-				{
-					case -1: x += textWidth; break;
-					case 1: x -= textWidth; break;
-				}
-				
-				// Post-word processing
-				switch(lastLetter)
-				{
-					case '_':
-					case '*':
-						nvgFontFace(ui.canvas.nano, "normal");
-						break;
-				}
+				case '\\':
+					break;
+				case '_':
+				case '*':
+					lastLetter = '_';
+					break;
+				case '|':
+					lastLetter = '|';
+					break;
+			}
+			word[lastIndex] = '\0';
+			lastIndex -= 1;
+		}
+		
+		// Send word to "action"
+		float bounds[4];
+		float textWidth = nvgTextBounds(ui.canvas.nano, *x, *y, word, NULL, bounds) + ui.canvas.spaceWidth;
+		uiIndices indices = { parIndex, tabIndex, wordIndex };
+		
+		bounds[0] -= ui.canvas.spaceWidth/4.0;
+		bounds[1] = *y - ui.canvas.margin;
+		bounds[2] += ui.canvas.spaceWidth/4.0;
+		bounds[3] = *y + ui.canvas.lineHeight;
+		
+		if(action &&
+			action(ui, itemType, word, *x, *y, boxXYXY(bounds), indices, data) == uiStop
+		)
+			{ return uiStop; }
+		
+		// Advance text entry position
+		if(*word != '\0')
+		{
+			switch(align)
+			{
+				case uiLeft: *x += textWidth; break;
+				case uiRight: *x -= textWidth; break;
 			}
 		}
+		
+		// Post-word processing
+		switch(lastLetter)
+		{
+			case '_':
+			case '*':
+				nvgFontFace(ui.canvas.nano, "normal");
+				break;
+			case '|':
+				itemType = uiText;
+				break;
+		}
 	}
-	free(pars);
+	
+	return uiNoStop;
+}
+
+
+// Tag
+
+uiState uiParseTag(uiWindow ui, uiWordAction action, uiParseContext* data,
+	float* x, float* y, uiAlign align, int parIndex, int tabIndex, char* word, char** wordProgress)
+{
+	while(word = strtok_r(NULL, " ", wordProgress))
+	{
+		int lastIndex = strlen(word) - 1;
+		if(word[lastIndex] == '>')
+			{ return uiStop; }
+	}
 	return uiNoStop;
 }
 

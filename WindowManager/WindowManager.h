@@ -47,12 +47,12 @@ typedef struct wmSession
 wmSession wmSwapPlaces(wmSession, int indexA, int indexB);
 wmSession wmUpdateWindowAttributes(wmSession);
 
+int wmErrorHandler(Display*, XErrorEvent*);
+
 #include "WindowManager/Desktop.h"
 
 
 // Functions
-
-int wmErrorHandler(Display*, XErrorEvent*);
 
 wmSession wmGet(const char* displayID)
 {
@@ -168,7 +168,8 @@ wmSession wmLayoutWorkspace(wmSession session)
 wmSession wmSwitchToWorkspace(wmSession session, int workspace)
 {
 	if(workspace == session.activeWorkspace) { return session; }
-
+	
+	// Hide all currently active
 	for(int window = 0; window < wmLength(session); window++)
 	{
 		XUnmapWindow(session.root.display, wmWorkspace(session)[window].id);
@@ -177,6 +178,7 @@ wmSession wmSwitchToWorkspace(wmSession session, int workspace)
 	session.activeWorkspace = workspace;
 	session = wmLayoutWorkspace(session);
 	
+	// Show all newly active
 	for(int window = 0; window < wmLength(session); window++)
 	{
 		XMapWindow(session.root.display, wmWorkspace(session)[window].id);
@@ -239,13 +241,14 @@ wmSession wmGlobalEvents(wmSession session)
 		case MapRequest:
 			printf("wmGlobalEvent MapRequest %lui\n", event.xmaprequest.window);
 			
+			// Only handle "normal" windows, i.e. not tooltips and menus
 			targetedWindow = xWrap(session.root, event.xmaprequest.window);
 			if(xIsNormal(targetedWindow))
 			{
-				// Listen for mouse entering the new window (in desktop.h)
+				// Set to listen for mouse entering the new window (will handle in Desktop.h)
 				XSelectInput(session.desktop.ui.window.display, targetedWindow.id, EnterWindowMask);
 				
-				// New top-level application windows are placed at the end of the workspace
+				// Place at the end of the workspace
 				if(wmLength(session) < 4)
 					wmLength(session) += 1;
 				else
@@ -255,6 +258,8 @@ wmSession wmGlobalEvents(wmSession session)
 					= targetedWindow;
 				
 				XSetWindowBorderWidth(session.root.display, targetedWindow.id, 0);
+				
+				// Update layout
 				session = wmLayoutWorkspace(session);
 			}
 			XMapWindow(session.root.display, targetedWindow.id);
@@ -263,7 +268,7 @@ wmSession wmGlobalEvents(wmSession session)
 		case ConfigureRequest:
 			printf("wmGlobalEvent ConfigureRequest %li\n", event.xconfigurerequest.window);
 			
-			// Sign-off on all changes to dialogs, popups, etc.
+			// Sign-off on all changes
 			XWindowChanges changes;
 			changes.x = event.xconfigurerequest.x;
 			changes.y = event.xconfigurerequest.y;
@@ -275,7 +280,7 @@ wmSession wmGlobalEvents(wmSession session)
 			XConfigureWindow(session.root.display, event.xconfigurerequest.window,
 				event.xconfigurerequest.value_mask, &changes);
 			
-			// Fix layout for top-level application windows
+			// Fix to our layout if it's a top-level application windows
 			targetedWindow = xWrap(session.root, event.xconfigurerequest.window);			
 			if(xIsNormal(targetedWindow))
 			{
@@ -333,6 +338,9 @@ struct wmRemovals
 };
 struct wmRemovals wmRemovals = {0};
 
+
+// Main call - splice desktop and window manager events
+
 wmSession wmEvents(wmSession session)
 {
 	// Handle window manager and desktop events
@@ -358,7 +366,9 @@ wmSession wmEvents(wmSession session)
 	return session;
 }
 
-// Replacement X11 error handler - note BadWindows
+
+// Replacement X11 error handler - look out for BadWindows
+
 int wmErrorHandler(Display* display, XErrorEvent* error) {
 	printf("X11 error. Request %i, code %i.%i, resource %li\n",
 		error->request_code, error->error_code, error->minor_code, error->resourceid);

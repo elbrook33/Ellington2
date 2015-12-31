@@ -9,7 +9,7 @@
 #define themeFontBold	"/opt/ellington/Resources/LiberationSans-Bold.ttf"
 #define themeFontItalic	"/opt/ellington/Resources/LiberationSans-Italic.ttf"
 #define themeFontSize	13
-#define themeLineHeight	22
+#define themeLineHeight	17
 
 // Colours, in hue, saturation, lightness
 #define themeTitlebarFg	0, 0, 1
@@ -17,6 +17,8 @@
 #define themeTitlebarInactive	0, 0.1, 0.75
 #define themePanelFg	0, 0, 0.2
 #define themePanelBg	0, 0.1, 0.9
+#define themeHighlightFg	0, 0, 1
+#define themeHighlightBg	0, 0.15, 0.35
 
 // Dimensions
 #define themeMargin	5
@@ -25,6 +27,7 @@
 #define themeBarHeight	22
 
 // Miscellaneous
-#define themeDateFormat "%A"
+#define themeDateFormat	"%A"
+#define themeScrollBy	10
 
 #endif

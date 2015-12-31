@@ -36,17 +36,27 @@ typedef struct xWindow
 	XClassHint name;
 } xWindow;
 
+typedef enum { uiNoStop, uiStop } uiState;
+typedef enum { uiText, uiHighlighted, uiImage } uiItemType;
+typedef enum { uiLeft, uiCentre, uiRight } uiAlign;
+
+typedef struct uiBox { float x, y, width, height; } uiBox;
+typedef struct uiIndices { int par, tab, word; } uiIndices;
+
 typedef struct uiCanvas
 {
 	GLXContext glx;
 	NVGcontext* nano;
+	char* markup;
 	
 	float left, right, top, bottom, margin,
-		fontSize, lineHeight;
+		fontSize, lineHeight, spaceWidth,
+		scrollHeight, scrollY;
 	
-	NVGcolor fgColour, bgColour;
+	NVGcolor fgColour, bgColour, highlight;
 	int bgImage;
 	NVGpaint bgImagePattern;
+	uiAlign highlightStyle;
 } uiCanvas;
 
 typedef struct uiWindow
@@ -55,20 +65,31 @@ typedef struct uiWindow
 	uiCanvas canvas;
 } uiWindow;
 
-typedef enum { uiNoStop, uiStop } uiState;
-typedef enum { uiText, uiImage } uiItemType;
+typedef struct uiWordData
+{
+	const char* text;
+	float wordX, wordY;
+	uiIndices position, lengths;
+	uiBox box;
+} uiWordData;
 
-typedef struct uiBox { float x, y, width, height; } uiBox;
-typedef struct uiIndices { int par, tab, word; } uiIndices;
+typedef struct uiParseContext
+{
+	struct {
+		float eventX, eventY;
+	} in;
+	uiWordData out;
+} uiParseContext;
 
 typedef struct uiEvent
 {
 	int type;
 	XEvent xEvent;
+	float x, y;
 	uiIndices target;
 } uiEvent;
 
-typedef uiState (*uiWordAction)(uiWindow, uiItemType, const char*, float, float, uiBox, uiIndices, void*);
+typedef uiState (*uiWordAction)(uiWindow, uiItemType, uiWordData, uiParseContext*);
 
 
 // Helper functions
@@ -107,7 +128,7 @@ uiBox boxWindow(xWindow window)
 	box.height = window.attributes.height;
 	return box;
 }
-bool uiEventTarget(uiEvent event, int par, int tab, int word)
+bool uiEventTargetIs(uiEvent event, int par, int tab, int word)
 {
 	return event.target.par == par && event.target.tab == tab && event.target.word == word;
 }

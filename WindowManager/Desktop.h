@@ -94,7 +94,7 @@ void desktopRedraw(wmSession session)
 }
 
 
-// Drag events
+// Map positions for windows and titlebars
 
 int desktopWindowAt(wmSession session, int x, int y)
 {
@@ -126,6 +126,9 @@ int desktopTitlebarAt(wmSession session, int x, int y)
 	}
 	return -1;
 }
+
+
+// Events
 
 wmSession desktopEvents(wmSession session)
 {
@@ -171,7 +174,7 @@ wmSession desktopEvents(wmSession session)
 				uiIndexInBox(session.desktop.ui,
 					desktopTitlebar(wmWorkspace(session)[targetIndex]),
 					"> *×* >",
-					event.xbutton.x_root, event.xbutton.y_root,
+					event.xbutton.x, event.xbutton.y,
 					indexData
 				)
 			) { 
@@ -184,8 +187,8 @@ wmSession desktopEvents(wmSession session)
 				drag.active = true;
 				drag.index = desktopWindowAt(session, event.xbutton.x_root, event.xbutton.y_root);
 				drag.window = wmWorkspace(session)[drag.index];
-				drag.offsetX = event.xbutton.x_root - drag.window.attributes.x;
-				drag.offsetY = event.xbutton.y_root - drag.window.attributes.y;
+				drag.offsetX = event.xbutton.x - drag.window.attributes.x;
+				drag.offsetY = event.xbutton.y - drag.window.attributes.y;
 				
 				session.desktop.dragEvent = drag;
 			}
@@ -211,8 +214,8 @@ wmSession desktopEvents(wmSession session)
 			// Handle drag
 			//
 			
-			newX = event.xmotion.x_root - drag.offsetX;
-			newY = max(event.xmotion.y_root - drag.offsetY, 2*themeBarHeight);
+			newX = event.xmotion.x - drag.offsetX;
+			newY = max(event.xmotion.y - drag.offsetY, 2*themeBarHeight);
 			
 			
 			// Limit movements
@@ -258,7 +261,8 @@ wmSession desktopEvents(wmSession session)
 			
 			// Move windows and redraw
 			
-			XMoveWindow(display, drag.window.id, newX, newY);
+			XMoveWindow(session.root.display, drag.window.id, newX, newY);
+				// Unless moving from root's display, gets caught up having to ask window manager for permission.
 			session = wmUpdateWindowAttributes(session);
 			desktopRedraw(session);
 			
